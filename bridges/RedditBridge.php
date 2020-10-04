@@ -1,6 +1,5 @@
 <?php
-class RedditBridge extends BridgeAbstract
-{
+class RedditBridge extends BridgeAbstract {
 
 	const MAINTAINER = 'dawidsowa';
 	const NAME = 'Reddit Bridge';
@@ -26,22 +25,25 @@ class RedditBridge extends BridgeAbstract
 		)
 	);
 
-	private function encodePermalink($link)
-	{
+	private function encodePermalink($link) {
 		return self::URI
 			. implode('/', array_map('urlencode', explode('/', $link)));
 	}
 
-	public function getIcon()
-	{
+	public function getIcon() {
 		return 'https://www.redditstatic.com/desktop2x/img/favicon/favicon-96x96.png';
 	}
 
-	public function collectData()
-	{
+	public function getName() {
+		if ($this->queriedContext == 'single') {
+			return 'Reddit r/' . $this->getInput('r');
+		} else {
+			return self::NAME;
+		};
+	}
 
+	public function collectData() {
 		switch ($this->queriedContext) {
-
 			case 'single':
 				$subreddits[] = $this->getInput('r');
 				break;
@@ -73,10 +75,11 @@ class RedditBridge extends BridgeAbstract
 						htmlspecialchars_decode($data->selftext_html);
 				} elseif ($data->post_hint == 'link') {
 					// Link WITH preview
+					$embed = htmlspecialchars_decode($data->media->oembed->html);
 
-					// TODO If it's a link to image, use that link
 					$item['content'] = '<a href="' . $data->url
-						. '"><img src="' . $data->thumbnail . '" /></a>';
+						. '"><img src="' . $data->thumbnail . '" /></a>'
+						. $embed;
 				} elseif ($data->post_hint == 'image') {
 					$item['content'] = '<a href="'
 						. $this->encodePermalink($data->permalink)
@@ -92,7 +95,6 @@ class RedditBridge extends BridgeAbstract
 
 					$item['content'] = implode("", $images);
 				} elseif ($data->is_video) {
-					// JSON has a video url without audio, so it's better to just use image
 					$item['content'] =  '<a href="'
 						. $this->encodePermalink($data->permalink) . '">'
 						. '<figure>'
@@ -101,21 +103,26 @@ class RedditBridge extends BridgeAbstract
 						. $data->preview->images[0]->resolutions[3]->url . '"/>'
 						. '</figure>'
 						. '</a>';
+				} elseif ($data->media->type == 'youtube.com') {
+					$item['content'] =  '<a href="'
+						. $this->encodePermalink($data->url) . '">'
+						. '<figure>'
+						. '<figcaption>Youtube</figcaption>'
+						. '<img src="'
+						. $data->media->oembed->thumbnail_url . '"/>'
+						. '</figure>'
+						. '</a>';
+				} elseif (explode('.', $data->domain)[0] == 'self') {
+					// Crossposted text post
+					// TODO (optionally?) Fetch content of the original post.
+					$item['content'] = '<a href="'
+						. $this->encodePermalink($data->permalink)
+						. '">Crossposted from r/'
+						. explode('.', $data->domain)[1] .  '</a>';
 				} else {
 					// Link WITHOUT preview
-					if (explode('.', $data->domain)[0] == 'self') {
-						// Crossposted text post
-						// TODO (optionally?) Fetch content of the original post.
-						// REVIEW Should it point to the original, or the crosspost?
-						$item['content'] = '<a href="'
-							. $this->encodePermalink($data->permalink)
-							. '">Crossposted from r/'
-							. explode('.', $data->domain)[1] .  '</a>';
-					} else {
-						// Link WITHOUT preview
-						$item['content'] = '<a href="' . $data->url . '">'
-							. $data->domain . '</a>';
-					}
+					$item['content'] = '<a href="' . $data->url . '">'
+						. $data->domain . '</a>';
 				}
 
 				$this->items[] = $item;
