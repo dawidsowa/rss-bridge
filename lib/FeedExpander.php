@@ -372,6 +372,15 @@ abstract class FeedExpander extends BridgeAbstract {
 				$item['author'] = (string)$media->credit;
 		}
 
+		if (isset($media->content)) {
+			foreach ($media->content->attributes() as $attribute => $value) {
+				if ($attribute === 'url') {
+					$item['enclosures'] = array((string)$value);
+					break;
+				}
+			}
+		}
+
 		if(isset($feedItem->enclosure) && !empty($feedItem->enclosure['url'])) {
 			$item['enclosures'] = array((string)$feedItem->enclosure['url']);
 		}
