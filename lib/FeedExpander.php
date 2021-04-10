@@ -376,6 +376,10 @@ abstract class FeedExpander extends BridgeAbstract {
 			$item['enclosures'] = array((string)$feedItem->enclosure['url']);
 		}
 
+		if (!isset($item['content']) && isset($media->description)) {
+			$item['content'] = (string)$media->description;
+		}
+
 		return $item;
 	}
 
